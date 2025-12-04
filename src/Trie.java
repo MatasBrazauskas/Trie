@@ -1,30 +1,12 @@
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Iterator;
 import java.util.Stack;
+import java.util.Iterator;
 
-public class Trie {
-
-    public enum Type {
-        //ASCII(256);
-        LOWER(26),
-        AUTO(0);
-        //LOWER_AND_HIGHER(52),
-        //LOWER_AND_NUMBERS(78);
-
-        public final int alphabetSize;
-
-        Type(int alphabetSize){
-            this.alphabetSize = alphabetSize;
-        }
-
-        public int getAlphabetSize(){
-            return alphabetSize;
-        }
-    }
-
+public class Trie implements Iterable<String> {
     public class TrieNode {
         public TrieNode[] arr;
+        public int size;
         public boolean endOfWord;
 
         public TrieNode(int size){
@@ -32,32 +14,29 @@ public class Trie {
             Arrays.fill(arr, null);
             endOfWord = false;
         }
-    }
 
-    public class Temp{
-        public int index;
-        public TrieNode node;
+        public String toString(){
+            var str = new StringBuilder("[");
 
-        public Temp(int index, TrieNode node){
-            this.index = index;
-            this.node = node;
+            for(int i = 0; i < arr.length; i++){
+                if(arr[i] == null){
+                    str.append(" NULL, ");
+                }else{
+                    str.append(" " + i + ", ");
+                }
+            }
+            str.append("]");
+
+            return "Size: " + size + " End of Word: " + endOfWord + " Array: " +  str.toString();
         }
     }
 
     public TrieNode root;
     public char[] characters;
-    public final Type type;
     public int size;
-
-    /*public Trie(Type type) {
-        root = new TrieNode();
-        this.type = type;
-        alphabetSize = type.getAlphabetSize();
-    }*/
 
     public Trie(char[] arr){
         this.root = new TrieNode(arr.length);
-        this.type = Type.AUTO;
 
         characters = new char[arr.length];
         System.arraycopy(arr, 0, characters, 0, arr.length);
@@ -67,8 +46,8 @@ public class Trie {
     public void insert(String word) {
         var node = root;
 
-        for(char i : word.toCharArray()){
-            int index = hashFunction(i);
+        for(int i = 0; i < word.length(); i++){
+            int index = hashFunction(word.charAt(i));
 
             if(index < 0){
                 throw new IllegalArgumentException("Character is not part of a character set");
@@ -76,111 +55,172 @@ public class Trie {
 
             if(node.arr[index] == null){
                 node.arr[index] = new TrieNode(characters.length);
+                node.size++;
             }
 
             node = node.arr[index];
         }
+
+        node.endOfWord = true;
         size++;
     }
 
-    public boolean contains(String word) {
+    public void remove(String word){
+        var node = root;
+    }
+
+    public ArrayList<String> prefixSeach(String prefix){
         var node = root;
 
-        for(char i : word.toCharArray()){
-            int index = hashFunction(i);
+        for(int i = 0; i < prefix.length(); i++){
+            int index = hashFunction(prefix.charAt(i));
+
+            if(index < 0){
+                throw new IllegalArgumentException("Character is not part of a character set");
+            }
+
+            if(node.arr[index] == null){
+                throw new IllegalArgumentException("Prefix does not exist in trie");
+            }
+
+            node = node.arr[index];
+        }
+
+        var arr = new ArrayList<String>();
+
+        if(node.endOfWord){
+            arr.add(prefix);
+        }
+
+        var it = new TrieIterator(node);
+        StringBuilder str;
+
+        while(it.hasNext()){
+            str = new StringBuilder(prefix);
+            str.append(it.next().toString());
+            arr.add(str.toString());
+        }
+
+        return arr;
+    }
+
+    public boolean contains(String word){
+        var node = root;
+
+        for(int i = 0; i < word.length(); i++){
+            int index = hashFunction(word.charAt(i));
+
+            if(index < 0){
+                return false;
+            }
 
             if(node.arr[index] == null){
                 return false;
             }
+
             node = node.arr[index];
         }
-
-        return true;
+        return node.endOfWord;
     }
 
     private int hashFunction(char character){
-        switch(this.type){
-            case LOWER: return character - 'a';
-            case AUTO: return Arrays.binarySearch(characters, character);
-            default: throw new IllegalArgumentException("Invalid type");
-        }
+        return Arrays.binarySearch(characters, character);
     }
 
-    private Temp nextElement(int index, TrieNode node){
-        for(; index < characters.length; index++){
-            if(node.arr[index] != null){
-                return new Temp(index, node.arr[index]);
+    private int nextIndex(TrieIterator.Frame frame){
+        for(int i = frame.index; i < characters.length; i++){
+            if(frame.node.arr[i] != null){
+                return i;
             }
         }
-        return null;
+        return characters.length + 1;
     }
 
-    /*public Iterator<Character> iterator(){
+    @Override
+    public Iterator<String> iterator(){
         return new TrieIterator();
-    }*/
+    }
 
-    public class TrieIterator {
+    public class TrieIterator implements Iterator<String> {
+        public static class Frame {
+            public TrieNode node;
+            public int index;
 
-        public Stack<TrieNode> stack;
-        public Stack<Integer> indexes;
+            public Frame(TrieNode node, int index){
+                this.node = node;
+                this.index = index;
+            }
+
+            @Override
+            public String toString(){
+                return "Node: " + node.toString() + " Index: " + index;
+            }
+        }
+
+        public Stack<Frame> stack;
         public ArrayList<Character> list;
 
         public TrieIterator(){
             stack = new Stack<>();
-            indexes = new Stack<>();
             list = new ArrayList<>();
 
-            Temp temp = nextElement(0, root);
-            stack.push(root);
-            indexes.push(temp.index);
-            list.add(characters[temp.index]);
+            stack.push(new Frame(root, 0));
+            dfs();
+        }
 
-            dfs(temp.node, 0);
+        public TrieIterator(TrieNode node){
+            stack = new Stack<>();
+            list = new ArrayList<>();
+
+            stack.push(new Frame(node, 0));
+            dfs();
         }
 
         public boolean hasNext() {
             return !stack.isEmpty();
         }
 
+        @Override
         public String next() {
+            final var str = list.toString();
 
-            Temp temp = nextElement(indexes.peek() + 1, stack.peek());
+            Frame frame = stack.peek();
+            int index = nextIndex(frame);
 
-            System.out.println("This is the index of a inserted characeter "  + temp.index);
-
-            /*while(temp == null){
+            while(frame.node.size == 0 && index >= characters.length){
                 stack.pop();
-                indexes.pop();
-                list.removeLast();
 
-                temp = nextElement(indexes.peek() + 1, stack.peek());
-            }*/
+                if(list.isEmpty() == false) {
+                    list.removeLast();
+                }
 
-            //indexes.pop();
-            //indexes.push(temp.index + 1);
-            list.removeLast();
-            list.add(characters[temp.index]);
-            indexes.pop();
-            indexes.push(temp.index + 1);
+                if(stack.isEmpty()) return str;
+                index = nextIndex(stack.peek());
+            }
 
-            dfs(temp.node, temp.index + 1);
-
-            return list.toString();
+            dfs();
+            return str;
         }
 
-        private void dfs(TrieNode node, int startIndex) {
-            Temp temp;
-            while((temp = nextElement(startIndex, node)) != null){
-                startIndex = temp.index;
+        public void dfs() {
+            TrieNode node = stack.peek().node;
+            int index = nextIndex(stack.peek());
 
-                stack.push(node);
-                indexes.push(startIndex);
-                list.add(characters[startIndex]);
+            while(index < characters.length && node.arr[index].endOfWord == false) {
+                stack.peek().index = index + 1;
+                list.add(characters[index]);
 
-                System.out.println(node.toString() + " " + startIndex);
+                stack.push(new Frame(node.arr[index], 0));
+                node = node.arr[index];
 
-                node = temp.node;
-                startIndex = 0;
+                index = nextIndex(stack.peek());
+            }
+
+            if(index < characters.length){
+                stack.peek().index = index + 1;
+                stack.push(new Frame(node.arr[index], 0));
+
+                list.add(characters[index]);
             }
         }
     }

@@ -6,19 +6,27 @@ public class Main {
         trie.insert("abd");
         trie.insert("cc");
         trie.insert("ab");
-
-
+        trie.insert("abcd");
+        trie.insert("bbc");
+        trie.insert("bcc");
+        trie.insert("bbbb");
 
         var it = trie.new TrieIterator();
-        var tempIt = trie.new TrieIterator();
-        System.out.println(it.next());
 
-        System.out.println("+++++++++++++++++++++++++++++++++++++");
+        /*while(it.hasNext()){
+            System.out.println(it.next());
+        }*/
 
-        while(tempIt.indexes.isEmpty() == false){
-            System.out.println(tempIt.indexes.pop() + " " + tempIt.stack.pop().toString());
+        for(var i : trie){
+            System.out.println(i);
         }
 
-        //System.out.println(it.next());
+        var arr = trie.prefixSeach("ab");
+
+        for(var i : arr){
+            System.out.println(i);
+        }
+
+        //System.out.println(trie.contains("cc"));
     }
 }
